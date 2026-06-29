@@ -608,8 +608,36 @@ function enterApp(major){
   el('storiesLbl').textContent = 'Top stories · '+MAJOR.label;
   initHdr();
   renderRems(); REMS.forEach(schedRem);
-  loadAI();
+
+  var cached = loadCache(major);
+  if(cached){ DATA = cached.data; paint(cached.ts); }
+  else { loadAI(); }
+
+  maybeAutoRefresh(major);
   setInterval(initHdr,60000);
+  setInterval(function(){ maybeAutoRefresh(major); }, 10*60*1000);
+}
+
+/* ── local cache (avoids an AI call on every app open) ── */
+function cacheKey(majorKey){ return 'silkly_cache_'+majorKey; }
+function loadCache(majorKey){
+  try{ var c=JSON.parse(localStorage.getItem(cacheKey(majorKey))); if(c&&c.data&&c.ts) return c; }catch(e){}
+  return null;
+}
+function saveCache(majorKey,data){
+  try{ localStorage.setItem(cacheKey(majorKey), JSON.stringify({data:data,ts:Date.now()})); }catch(e){}
+}
+/* once a day at 6am, refresh automatically only if the cache is more than 6h stale */
+function maybeAutoRefresh(majorKey){
+  var now=new Date();
+  if(now.getHours()!==6) return;
+  var cached=loadCache(majorKey);
+  var last=cached?cached.ts:0;
+  if(Date.now()-last <= 6*60*60*1000) return;
+  var flagKey='silkly_autoref_'+majorKey, todayStr=now.toDateString();
+  if(localStorage.getItem(flagKey)===todayStr) return;
+  localStorage.setItem(flagKey,todayStr);
+  loadAI();
 }
 
 function buildNav(){
@@ -670,7 +698,7 @@ function buildPrompt(){
   'Use your best current knowledge; approximate values are fine.';
 }
 
-async function loadAI(){
+async function loadAI(manual){
   var { data:{ session } } = await sb.auth.getSession();
   if(!session){ openGate('v-login'); return; }
   try{
@@ -683,17 +711,29 @@ async function loadAI(){
     if(out.error){ throw new Error(out.error); }
     var cleaned=(out.text||'{}').replace(/```json/g,'').replace(/```/g,'').trim();
     DATA=JSON.parse(cleaned);
+    saveCache(ME.prof.major, DATA);
     paint();
     touchActive();
   }catch(e){
-    el('briefBody').textContent = 'Could not load today\'s brief — '+(e.message||'unknown error')+'. Pull to refresh in a moment.';
-    el('domBody').textContent = 'Unavailable right now.';
-    loadDemo();
+    var cached=loadCache(ME&&ME.prof.major);
+    if(cached){ DATA=cached.data; paint(cached.ts); }
+    if(manual){
+      showToast(/limit/i.test(e.message||'')?'Refresh limit reached':'Could not refresh', e.message||'Try again later.');
+    }
+    if(!cached){
+      el('briefBody').textContent = 'Could not load today\'s brief — '+(e.message||'unknown error')+'. Pull to refresh in a moment.';
+      el('domBody').textContent = 'Unavailable right now.';
+      loadDemo();
+    }
   }
 }
-function paint(){
+function showToast(title,sub){
+  el('toastT').textContent=title; el('toastS').textContent=sub;
+  var t=el('toast'); t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},4000);
+}
+function paint(ts){
   el('briefBody').textContent = DATA.brief || 'Brief unavailable.';
-  el('briefLbl').textContent = 'Today\'s brief · '+fmtTime(new Date());
+  el('briefLbl').textContent = 'Today\'s brief · '+fmtTime(ts?new Date(ts):new Date());
   el('domBody').textContent = DATA.domread || '—';
   renderNews(); renderCards(DATA.cards||[]); buildFeed(DATA.feed||[]);
   if(DATA.signal) renderSignal(DATA.signal);
@@ -817,7 +857,7 @@ el('ttsBtn').onclick=function(){
 el('refBtn').onclick=function(){
   el('briefBody').innerHTML='<div class="shim" style="width:90%"></div><div class="shim" style="width:70%"></div>';
   el('domBody').innerHTML='<div class="shim" style="width:95%"></div><div class="shim" style="width:80%"></div>';
-  loadAI();
+  loadAI(true);
 };
 
 /* ============================================================
