@@ -75,6 +75,19 @@ a{color:var(--accent);text-decoration:none}
 .major .ic{width:44px;height:44px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
 .major .mt{font-size:15px;font-weight:700}
 .major .md{font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.4}
+/* multi-select checkmark */
+.major{position:relative}
+.ind-chk{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--dim);flex-shrink:0;margin-left:auto;transition:all .18s;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent}
+.major.sel .ind-chk{background:var(--accent);border-color:var(--accent);color:#0B0B0C}
+/* theme picker */
+.theme-opts{display:flex;gap:10px;margin-bottom:8px}
+.theme-opt{flex:1;border-radius:16px;padding:14px;border:2px solid var(--line);cursor:pointer;transition:border-color .18s,background .18s}
+.theme-opt.sel{border-color:var(--accent);background:rgba(201,160,99,.06)}
+.theme-preview{height:58px;border-radius:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.theme-preview.dp{background:#141415}
+.theme-preview.lp{background:#F0EEE9}
+.theme-opt-lbl{font-size:13px;font-weight:700;text-align:center}
+.theme-opt-sub{font-size:11px;color:var(--sub);text-align:center;margin-top:2px}
 
 /* ───────────── APP SHELL ───────────── */
 #app{height:100%;display:none;flex-direction:column}
@@ -299,11 +312,31 @@ a{color:var(--accent);text-decoration:none}
       <div class="err" id="npErr"></div>
     </div>
 
-    <!-- view: ONBOARDING (pick major) -->
+    <!-- view: PICK THEME -->
+    <div id="v-theme" style="display:none">
+      <div class="eyebrow">Appearance</div>
+      <div class="headline">How should it look?</div>
+      <div class="lede">Choose a theme. You can change this anytime in settings.</div>
+      <div class="theme-opts" id="themeOpts">
+        <div class="theme-opt sel" data-t="dark">
+          <div class="theme-preview dp">🌙</div>
+          <div class="theme-opt-lbl">Dark</div>
+          <div class="theme-opt-sub">Easy on the eyes</div>
+        </div>
+        <div class="theme-opt" data-t="light">
+          <div class="theme-preview lp">☀️</div>
+          <div class="theme-opt-lbl">Light</div>
+          <div class="theme-opt-sub">Clean & bright</div>
+        </div>
+      </div>
+      <button class="cta" id="themeBtn">Continue</button>
+    </div>
+
+    <!-- view: ONBOARDING (pick industries) -->
     <div id="v-major" style="display:none">
       <div class="eyebrow">Personalise</div>
-      <div class="headline">Pick your field</div>
-      <div class="lede">Your daily brief, feed and signal are built around this. You can change it anytime in settings.</div>
+      <div class="headline">What do you follow?</div>
+      <div class="lede">Pick the industries you want Silkly to cover. Select as many as you like.</div>
       <div class="majors" id="majorPick"></div>
       <button class="cta" id="mjBtn" disabled>Build my feed</button>
       <div class="err" id="mjErr"></div>
@@ -473,15 +506,37 @@ var MAJORS = {
   }
 };
 
+var INDUSTRIES = [
+  {k:'finance',  emoji:'📈', label:'Finance',     desc:'Markets, macro & investing'},
+  {k:'medical',  emoji:'🩺', label:'Medicine',    desc:'Clinical research & health'},
+  {k:'engineering',emoji:'⚙️',label:'Engineering',desc:'Software, hardware & systems'},
+  {k:'ai',       emoji:'🤖', label:'AI & ML',     desc:'Machine learning & research'},
+  {k:'crypto',   emoji:'🪙', label:'Crypto',      desc:'Web3, DeFi & digital assets'},
+  {k:'climate',  emoji:'🌿', label:'Climate',     desc:'Energy & sustainability'},
+  {k:'startups', emoji:'🚀', label:'Startups',    desc:'VC, funding & founders'},
+  {k:'policy',   emoji:'⚖️', label:'Policy',      desc:'Regulation & geopolitics'}
+];
+var IND_MAJOR = {finance:'finance',medical:'medical',engineering:'engineering',ai:'engineering',crypto:'finance',climate:'engineering',startups:'finance',policy:'finance'};
+var IND_FOCUS = {
+  finance:'global markets, equities, macroeconomics, central banks, commodities, corporate earnings and deals',
+  medical:'clinical medicine, peer-reviewed research, drug trials, FDA/EMA approvals, public health, diagnostics and medical devices',
+  engineering:'software engineering, hardware, semiconductors, robotics, energy systems, aerospace and technical releases',
+  ai:'artificial intelligence, large language models, AI research, model releases, AI safety, ML applications and foundation models',
+  crypto:'cryptocurrency, Bitcoin, Ethereum, DeFi, NFTs, Web3, blockchain technology, digital assets and crypto regulation',
+  climate:'climate change, renewable energy, ESG investing, carbon markets, clean technology, sustainability and energy policy',
+  startups:'startups, venture capital, funding rounds, unicorn companies, product launches, IPOs and entrepreneurship',
+  policy:'government policy, regulation, geopolitics, law, tech policy, financial regulation and international affairs'
+};
+
 /* ── STATE ── */
 var ME=null, MAJOR=null, ACCENT="#C9A063", DATA=null, ttsOn=false, nFilter="All", rid=6;
-var REMS = loadRems();
+var REMS = loadRems(), selectedIndustries=[];
 var _hdrIval=null, _refIval=null;
 
 /* ── DOM helpers ── */
 function el(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function show(v){["v-login","v-pass","v-major"].forEach(function(x){el(x).style.display = (x===v?"block":"none");});}
+function show(v){["v-login","v-pass","v-theme","v-major"].forEach(function(x){el(x).style.display = (x===v?"block":"none");});}
 var DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function greet(){var h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
@@ -538,7 +593,7 @@ async function route(){
     applyTheme(prof.theme||'dark');
 
     if(prof.must_change_password){ openGate('v-pass'); return; }
-    if(!prof.major){ openGate('v-major'); return; }
+    if(!prof.major){ openGate('v-theme'); return; }
 
     await touchActive();
     enterApp(prof.major);
@@ -549,6 +604,7 @@ async function route(){
 
 function openGate(view, msg){
   el('gate').classList.add('on'); show(view);
+  if(view==='v-theme') initThemeOpts();
   if(view==='v-major') buildMajorPick();
   if(msg) el('liErr').textContent = msg;
 }
@@ -593,33 +649,59 @@ el('npBtn').onclick = async function(){
   await sb.from('profiles').update({ must_change_password:false }).eq('id',ME.id);
   this.disabled=false; this.textContent='Save password';
   ME.prof.must_change_password=false;
-  if(!ME.prof.major){ show('v-major'); buildMajorPick(); } else { closeGate(); enterApp(ME.prof.major); }
+  if(!ME.prof.major){ show('v-theme'); initThemeOpts(); } else { closeGate(); enterApp(ME.prof.major); }
 };
 
 /* ============================================================
-   ONBOARDING — pick major
+   ONBOARDING — theme picker
    ============================================================ */
-var pickedMajor=null;
+function initThemeOpts(){
+  var cur = document.documentElement.getAttribute('data-theme')||'dark';
+  Array.prototype.forEach.call(el('themeOpts').querySelectorAll('.theme-opt'),function(node){
+    node.classList.toggle('sel', node.getAttribute('data-t')===cur);
+    node.onclick=function(){
+      Array.prototype.forEach.call(el('themeOpts').querySelectorAll('.theme-opt'),function(n){n.classList.remove('sel');});
+      node.classList.add('sel');
+      applyTheme(node.getAttribute('data-t'));
+    };
+  });
+}
+el('themeBtn').onclick = async function(){
+  var picked=el('themeOpts').querySelector('.theme-opt.sel');
+  var t=picked?picked.getAttribute('data-t'):'dark';
+  applyTheme(t);
+  if(ME) await sb.from('profiles').update({theme:t}).eq('id',ME.id);
+  show('v-major'); buildMajorPick();
+};
+
+/* ============================================================
+   ONBOARDING — pick industries (multi-select)
+   ============================================================ */
 function buildMajorPick(){
-  el('majorPick').innerHTML = Object.keys(MAJORS).map(function(k){
-    var m=MAJORS[k];
-    return '<div class="major" data-m="'+k+'"><div class="ic">'+m.emoji+'</div>'+
-      '<div><div class="mt">'+m.label+'</div><div class="md">'+m.blurb+'</div></div></div>';
+  selectedIndustries=[];
+  el('majorPick').innerHTML = INDUSTRIES.map(function(ind){
+    return '<div class="major" data-m="'+ind.k+'">'+
+      '<div class="ic">'+ind.emoji+'</div>'+
+      '<div><div class="mt">'+ind.label+'</div><div class="md">'+ind.desc+'</div></div>'+
+      '<div class="ind-chk">✓</div></div>';
   }).join('');
   Array.prototype.forEach.call(el('majorPick').querySelectorAll('.major'),function(node){
     node.onclick=function(){
-      pickedMajor=node.getAttribute('data-m');
-      Array.prototype.forEach.call(el('majorPick').querySelectorAll('.major'),function(n){n.classList.remove('sel');});
-      node.classList.add('sel'); el('mjBtn').disabled=false;
+      var k=node.getAttribute('data-m'), idx=selectedIndustries.indexOf(k);
+      if(idx>-1){ selectedIndustries.splice(idx,1); node.classList.remove('sel'); }
+      else { selectedIndustries.push(k); node.classList.add('sel'); }
+      el('mjBtn').disabled=selectedIndustries.length===0;
     };
   });
 }
 el('mjBtn').onclick = async function(){
-  if(!pickedMajor) return;
+  if(!selectedIndustries.length) return;
   this.disabled=true; this.textContent='Building…';
-  await sb.from('profiles').update({ major:pickedMajor }).eq('id',ME.id);
-  ME.prof.major=pickedMajor;
-  closeGate(); enterApp(pickedMajor);
+  var primaryKey=IND_MAJOR[selectedIndustries[0]]||'finance';
+  saveInterests(selectedIndustries);
+  await sb.from('profiles').update({ major:primaryKey }).eq('id',ME.id);
+  ME.prof.major=primaryKey;
+  closeGate(); enterApp(primaryKey);
 };
 
 /* ============================================================
@@ -733,10 +815,18 @@ function updateNextUp(){
 /* ============================================================
    AI — calls the ai-proxy edge function (secret key stays server-side)
    ============================================================ */
+function interestLabels(){
+  var ids=loadInterests(); if(!ids.length) return MAJOR.label;
+  return ids.map(function(k){var i=INDUSTRIES.filter(function(x){return x.k===k;})[0]; return i?i.label:k;}).join(', ');
+}
+function interestFocus(){
+  var ids=loadInterests(); if(!ids.length) return MAJOR.focus;
+  return ids.map(function(k){return IND_FOCUS[k]||'';}).filter(Boolean).join('; ');
+}
 function buildPrompt(){
   var date=new Date().toDateString();
-  return 'You are Silkly, a daily intelligence engine for a professional whose field is '+MAJOR.label+'. '+
-  'Focus every piece of content on: '+MAJOR.focus+'. Date: '+date+'. '+
+  return 'You are Silkly, a daily intelligence engine for a professional whose interests cover: '+interestLabels()+'. '+
+  'Focus every piece of content on: '+interestFocus()+'. Date: '+date+'. '+
   'Return ONLY valid JSON — no markdown, no backticks, no preamble. Exactly these keys: '+
   'brief (string, 5 dense executive sentences: most consequential overnight development with specific names/numbers, the key macro risk to watch, the strongest positive signal, one specific tactical action for this person today, and one longer-horizon opportunity); '+
   'domread (string, 3 sentences: current state of the field today, what top practitioners are watching right now, and one specific data point or number that matters); '+
@@ -867,6 +957,8 @@ function loadRems(){ try{var r=JSON.parse(localStorage.getItem('rems'));if(r&&r.
   {id:2,title:'Plan the day',time:'09:30',cat:'Plan',done:false}
 ]; }
 function saveRems(){ try{localStorage.setItem('rems',JSON.stringify(REMS));}catch(e){} }
+function saveInterests(arr){ try{localStorage.setItem('silkly_interests_'+(ME&&ME.id||''),JSON.stringify(arr));}catch(e){} }
+function loadInterests(){ try{var r=JSON.parse(localStorage.getItem('silkly_interests_'+(ME&&ME.id||'')));if(r&&r.length)return r;}catch(e){} return []; }
 function renderRems(){
   var s=[].concat(REMS).sort(function(a,b){return a.time.localeCompare(b.time);});
   el('remList').innerHTML=s.map(function(r){
