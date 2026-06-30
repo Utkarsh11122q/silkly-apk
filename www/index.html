@@ -601,7 +601,16 @@ window.addEventListener('load',function(){
   initHdr(); buildCandles();
   setTimeout(function(){
     el('splash').classList.add('out');
-    setTimeout(function(){ el('splash').style.display='none'; route(); }, 800);
+    setTimeout(function(){
+      el('splash').style.display='none';
+      route();
+      // safety net: if neither gate nor app appeared after 6s, show login
+      setTimeout(function(){
+        if(!el('gate').classList.contains('on') && !el('app').classList.contains('on')){
+          openGate('v-login','Connection timed out — check your internet and try again.');
+        }
+      }, 6000);
+    }, 800);
   }, 2700);
 });
 
@@ -628,9 +637,13 @@ async function route(){
     var { data:{ session } } = await sb.auth.getSession();
     if(!session){ openGate('v-login'); return; }
 
-    // load profile
+    // load profile — if missing, create it via edge function then retry once
     var prof = await getProfile(session.user.id);
-    if(!prof){ await sb.auth.signOut(); openGate('v-login'); return; }
+    if(!prof){
+      await fetch(FN_URL+'/create-profile', { method:'POST', headers:{ 'Authorization':'Bearer '+session.access_token } });
+      prof = await getProfile(session.user.id);
+    }
+    if(!prof){ await sb.auth.signOut(); openGate('v-login', 'Could not load your profile. Please sign in again.'); return; }
 
     // 7-day inactivity logout
     var last = new Date(prof.last_active_at||0).getTime();
@@ -697,10 +710,14 @@ el('suBtn').onclick = async function(){
   var { data, error } = await sb.auth.signUp({ email:email, password:p1 });
   if(error){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent=friendly(error.message); return; }
   if(!data.session){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent='Check your email to confirm your account, then sign in.'; return; }
-  // create profile row
-  var username=email.split('@')[0];
-  await sb.from('profiles').insert({ id:data.user.id, username:username, must_change_password:false, last_active_at:new Date().toISOString() });
+  // create profile row via edge function (bypasses RLS)
+  var cpRes = await fetch(FN_URL+'/create-profile', {
+    method:'POST',
+    headers:{ 'Authorization':'Bearer '+data.session.access_token }
+  });
+  if(!cpRes.ok){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent='Account created but profile setup failed — try signing in.'; return; }
   this.disabled=false; this.textContent='Create account';
+  var username=data.user.email.split('@')[0];
   ME={ id:data.user.id, email:data.user.email, prof:{ username:username, must_change_password:false, major:null, theme:'dark' } };
   el('wm').textContent=username;
   show('v-theme'); initThemeOpts();
@@ -927,12 +944,15 @@ async function loadAI(manual){
   }catch(e){
     var cached=loadCache(ME&&ME.prof.major);
     if(cached){ DATA=cached.data; paint(cached.ts); }
-    if(manual){
-      showToast(/limit/i.test(e.message||'')?'Refresh limit reached':'Could not refresh', e.message||'Try again later.');
+    var msg=e.message||'Unknown error';
+    if(/limit/i.test(msg)){
+      showToast('Refresh limit reached','Try again in a few hours.');
+    } else {
+      showToast(manual?'Could not refresh':'Failed to load brief', msg);
     }
     if(!cached){
-      el('briefBody').textContent = 'Could not load today\'s brief — '+(e.message||'unknown error')+'. Pull to refresh in a moment.';
-      el('domBody').textContent = 'Unavailable right now.';
+      el('briefBody').textContent='Could not load — '+msg;
+      el('domBody').textContent='Unavailable right now.';
       loadDemo();
     }
   }
