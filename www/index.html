@@ -476,6 +476,7 @@ var MAJORS = {
 /* ── STATE ── */
 var ME=null, MAJOR=null, ACCENT="#C9A063", DATA=null, ttsOn=false, nFilter="All", rid=6;
 var REMS = loadRems();
+var _hdrIval=null, _refIval=null;
 
 /* ── DOM helpers ── */
 function el(id){return document.getElementById(id);}
@@ -638,8 +639,10 @@ function enterApp(major){
   else { loadAI(); }
 
   maybeAutoRefresh(major);
-  setInterval(initHdr,60000);
-  setInterval(function(){ maybeAutoRefresh(major); }, 10*60*1000);
+  if(_hdrIval) clearInterval(_hdrIval);
+  if(_refIval) clearInterval(_refIval);
+  _hdrIval = setInterval(initHdr,60000);
+  _refIval = setInterval(function(){ maybeAutoRefresh(major); }, 10*60*1000);
 }
 
 /* ── local cache (avoids an AI call on every app open) ── */
@@ -868,7 +871,7 @@ function renderRems(){
   var s=[].concat(REMS).sort(function(a,b){return a.time.localeCompare(b.time);});
   el('remList').innerHTML=s.map(function(r){
     return '<div class="ri"><div class="ri-chk'+(r.done?' done':'')+'" data-tog="'+r.id+'">'+(r.done?'✓':'')+'</div>'+
-      '<div class="ri-info"><div class="ri-t'+(r.done?' done':'')+'">'+r.title+'</div><div class="ri-s">'+r.time+'</div></div>'+
+      '<div class="ri-info"><div class="ri-t'+(r.done?' done':'')+'">'+esc(r.title)+'</div><div class="ri-s">'+esc(r.time)+'</div></div>'+
       '<span class="ri-cat">'+r.cat+'</span><button class="ri-del" data-del="'+r.id+'">✕</button></div>';
   }).join('');
   Array.prototype.forEach.call(el('remList').querySelectorAll('[data-tog]'),function(n){n.onclick=function(){togR(+n.getAttribute('data-tog'));};});
