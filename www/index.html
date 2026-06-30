@@ -23,7 +23,7 @@
   --text:#1A1A1C;--sub:#7A7A80;--dim:#C9C7C0;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;transition:background .4s,color .4s}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;transition:background .4s,color .4s;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 a{color:var(--accent);text-decoration:none}
 
 /* ───────────── SPLASH — market zoom intro ───────────── */
@@ -90,8 +90,8 @@ a{color:var(--accent);text-decoration:none}
 .gear svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
 
 .scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(70px + var(--safe-b))}
-.pane{display:none}.pane.on{display:block;animation:fu .25s ease}
-@keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.pane{display:none}.pane.on{display:block;animation:paneIn .28s cubic-bezier(.4,0,.2,1)}
+@keyframes paneIn{from{opacity:0;filter:blur(6px);transform:translateY(3px)}to{opacity:1;filter:blur(0px);transform:none}}
 ::-webkit-scrollbar{width:0}
 
 .nav{position:fixed;bottom:0;left:0;right:0;padding:8px 0 calc(var(--safe-b)+6px);background:var(--bg);backdrop-filter:blur(22px);border-top:1px solid var(--line2);display:flex;justify-content:space-around;z-index:200}
@@ -178,6 +178,23 @@ a{color:var(--accent);text-decoration:none}
 .ri-s{font-size:11px;color:var(--sub);margin-top:2px}
 .ri-cat{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--s2);color:var(--sub)}
 .ri-del{background:none;border:none;color:var(--dim);font-size:17px;cursor:pointer;padding:2px 4px;margin-left:4px}
+
+/* ── Day tab: iPhone Clock style ── */
+.day-clock-wrap{text-align:center;padding:36px 20px 26px;border-bottom:1px solid var(--line2)}
+.day-clk-time{font-size:68px;font-weight:200;letter-spacing:-2px;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.day-clk-period{font-size:26px;font-weight:300;color:var(--sub);vertical-align:super;margin-left:3px}
+.day-clk-date{font-size:13px;color:var(--sub);margin-top:8px;letter-spacing:.3px}
+.day-nextup{margin:12px 16px;background:rgba(201,160,99,.08);border:1px solid rgba(201,160,99,.22);border-radius:16px;padding:14px 16px;display:none;align-items:center;gap:12px}
+.day-nu-ico{font-size:26px;line-height:1}
+.day-nu-lbl{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+.day-nu-title{font-size:15px;font-weight:600}
+.day-nu-time{font-size:12px;color:var(--sub);margin-top:2px}
+.day-add-wrap{margin:10px 16px 0;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:15px 16px}
+.day-add-row{display:flex;align-items:center;gap:10px}
+.day-add-in{flex:1;background:transparent;border:none;color:var(--text);font-size:15px;font-family:inherit;outline:none}
+.day-add-in::placeholder{color:var(--sub)}
+.day-add-time{background:none;border:none;color:var(--accent);font-family:inherit;font-size:14px;font-weight:600;outline:none;cursor:pointer}
+.day-add-btn{background:var(--accent);border:none;border-radius:10px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#0B0B0C;cursor:pointer;flex-shrink:0}
 
 .sig-wrap{padding:14px 16px 0}
 .sig-intro{font-size:12px;color:var(--sub);line-height:1.7;margin-bottom:14px;padding-left:12px;border-left:2px solid var(--line)}
@@ -357,13 +374,20 @@ a{color:var(--accent);text-decoration:none}
 
     <!-- DAY -->
     <div class="pane" id="pane-day">
-      <div class="rem-add">
-        <input class="rem-in" id="rIn" placeholder="Meeting, task, call…" type="text"/>
-        <div class="rem-div"></div>
-        <div class="rem-trow"><span class="rem-tlbl">Time</span><input class="rem-tval" id="rTime" type="time" value="09:30"/></div>
-        <button class="rem-abtn" id="addRemBtn">+ Add reminder</button>
+      <div class="day-clock-wrap">
+        <div class="day-clk-time" id="dayClkTime"></div>
+        <div class="day-clk-date" id="dayClkDate"></div>
       </div>
+      <div class="day-nextup" id="dayNextUp"></div>
+      <div class="sec-lbl" style="padding-top:16px;padding-bottom:6px">Schedule</div>
       <div class="rem-list" id="remList"></div>
+      <div class="day-add-wrap">
+        <div class="day-add-row">
+          <input class="day-add-in" id="rIn" placeholder="Meeting, task, call…" type="text"/>
+          <input class="day-add-time" id="rTime" type="time" value="09:30"/>
+          <button class="day-add-btn" id="addRemBtn">+</button>
+        </div>
+      </div>
     </div>
 
     <!-- SIGNAL -->
@@ -679,6 +703,28 @@ function initHdr(){
   if(el('greetTxt')) el('greetTxt').textContent=greet();
   if(el('hdrTime')) el('hdrTime').textContent=fmtTime(n);
   if(el('hdrDate')) el('hdrDate').textContent=DAYS[n.getDay()]+', '+MONS[n.getMonth()]+' '+n.getDate();
+  var h=n.getHours(), m=n.getMinutes(), ampm=h>=12?'PM':'AM', h12=h%12||12, mm=m<10?'0'+m:m;
+  if(el('dayClkTime')) el('dayClkTime').innerHTML=h12+':'+mm+'<span class="day-clk-period">'+ampm+'</span>';
+  if(el('dayClkDate')) el('dayClkDate').textContent=DAYS[n.getDay()]+', '+MONS[n.getMonth()]+' '+n.getDate();
+  updateNextUp();
+}
+function updateNextUp(){
+  var card=el('dayNextUp'); if(!card) return;
+  var now=new Date();
+  var upcoming=REMS.filter(function(r){
+    if(r.done) return false;
+    var p=r.time.split(':');
+    return new Date(now.getFullYear(),now.getMonth(),now.getDate(),+p[0],+p[1],0)>now;
+  }).sort(function(a,b){return a.time.localeCompare(b.time);});
+  if(!upcoming.length){ card.style.display='none'; return; }
+  var nx=upcoming[0], p=nx.time.split(':');
+  var fire=new Date(now.getFullYear(),now.getMonth(),now.getDate(),+p[0],+p[1],0);
+  var mins=Math.round((fire-now)/60000);
+  var cd=mins<60?'in '+mins+'m':'in '+Math.floor(mins/60)+'h '+(mins%60)+'m';
+  card.style.display='flex';
+  card.innerHTML='<div class="day-nu-ico">⏰</div><div><div class="day-nu-lbl">Next Up</div>'+
+    '<div class="day-nu-title">'+esc(nx.title)+'</div>'+
+    '<div class="day-nu-time">'+nx.time+' · '+cd+'</div></div>';
 }
 
 /* ============================================================
@@ -689,13 +735,13 @@ function buildPrompt(){
   return 'You are Silkly, a daily intelligence engine for a professional whose field is '+MAJOR.label+'. '+
   'Focus every piece of content on: '+MAJOR.focus+'. Date: '+date+'. '+
   'Return ONLY valid JSON — no markdown, no backticks, no preamble. Exactly these keys: '+
-  'brief (string, 4 dense executive sentences: most consequential development, key risk, strongest positive signal, one specific action for this person); '+
-  'domread (string, 2 sentences giving the current state of the field and what to watch); '+
-  'stories (array of 8 objects, keys headline/summary/source/cat/time — cat must be one of '+JSON.stringify(MAJOR.chips.slice(1))+', time like "2h ago"); '+
-  'feed (array of 8 objects, keys headline/summary/source/tag/time — a broader mix within the field); '+
-  'cards (array of up to 4 objects, keys title and items, where items is an array of up to 4 objects with keys s (short symbol/label), n (full name), p (a representative current numeric value), pc (percent change today, number, may be negative) — pick the most relevant indicators, metrics, indices or instruments for the '+MAJOR.label+' field); '+
-  'signal (object: ideaTitle, ideaBody, radar [array of 3 strings], moveTitle, moveBody, word, wordDef, quote, quoteAttr). '+
-  'Use your best current knowledge; approximate values are fine.';
+  'brief (string, 5 dense executive sentences: most consequential overnight development with specific names/numbers, the key macro risk to watch, the strongest positive signal, one specific tactical action for this person today, and one longer-horizon opportunity); '+
+  'domread (string, 3 sentences: current state of the field today, what top practitioners are watching right now, and one specific data point or number that matters); '+
+  'stories (array of 10 objects, keys headline/summary/source/cat/time — cat must be one of '+JSON.stringify(MAJOR.chips.slice(1))+', time like "2h ago", summary must be 2 full sentences with specific details and numbers); '+
+  'feed (array of 10 objects, keys headline/summary/source/tag/time — a broader mix within the field, summaries should be substantive 2-sentence explanations); '+
+  'cards (array of up to 4 objects, keys title and items, where items is an array of up to 5 objects with keys s (short symbol/label), n (full name), p (a representative current numeric value), pc (percent change today, number, may be negative) — pick the most relevant indicators, metrics, indices or instruments for the '+MAJOR.label+' field); '+
+  'signal (object: ideaTitle, ideaBody [3 sentences with specifics], radar [array of 4 strings — each a concrete observation, not a vague platitude], moveTitle, moveBody [2 sentences], word, wordDef [full definition plus a sentence of professional context], quote, quoteAttr). '+
+  'Be specific with names, numbers, companies, and dates everywhere. Approximate values are fine but avoid vague generalities.';
 }
 
 async function loadAI(manual){
@@ -827,6 +873,7 @@ function renderRems(){
   }).join('');
   Array.prototype.forEach.call(el('remList').querySelectorAll('[data-tog]'),function(n){n.onclick=function(){togR(+n.getAttribute('data-tog'));};});
   Array.prototype.forEach.call(el('remList').querySelectorAll('[data-del]'),function(n){n.onclick=function(){delR(+n.getAttribute('data-del'));};});
+  updateNextUp();
 }
 function togR(id){var r=REMS.filter(function(x){return x.id===id;})[0];if(r){r.done=!r.done;saveRems();renderRems();}}
 function delR(id){REMS=REMS.filter(function(x){return x.id!==id;});saveRems();renderRems();}
@@ -838,10 +885,11 @@ el('addRemBtn').onclick=function(){
 function schedRem(r){
   var n=new Date(),p=r.time.split(':');
   var fire=new Date(n.getFullYear(),n.getMonth(),n.getDate(),+p[0],+p[1],0), ms=fire-n;
-  if(ms>0&&ms<86400000){ setTimeout(function(){
-    el('toastT').textContent=r.title; el('toastS').textContent=r.time+' reminder';
-    var t=el('toast'); t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},5000);
-  },ms); }
+  if(ms>0&&ms<86400000){
+    var warn=ms-5*60*1000;
+    if(warn>0) setTimeout(function(){ showToast('Coming up: '+r.title,'In 5 minutes · '+r.time); },warn);
+    setTimeout(function(){ showToast(r.title, r.time+' reminder'); },ms);
+  }
 }
 
 /* ============================================================
