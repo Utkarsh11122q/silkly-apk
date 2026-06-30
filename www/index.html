@@ -68,6 +68,10 @@ a{color:var(--accent);text-decoration:none}
 .cta:active{opacity:.85}.cta:disabled{opacity:.5}
 .err{font-size:12.5px;color:var(--down);min-height:18px;margin-top:10px;line-height:1.5}
 .fine{font-size:11px;color:var(--sub);text-align:center;margin-top:16px;line-height:1.6}
+.fld-wrap{position:relative;margin-bottom:11px}
+.fld-wrap .fld{margin-bottom:0;padding-right:46px;width:100%}
+.eye-btn{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--sub);cursor:pointer;padding:4px;line-height:0;display:flex;align-items:center}
+.eye-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 /* major picker */
 .majors{display:flex;flex-direction:column;gap:11px;margin-bottom:6px}
 .major{display:flex;align-items:center;gap:14px;background:var(--s1);border:1.5px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;transition:border-color .18s,background .18s}
@@ -294,11 +298,34 @@ a{color:var(--accent);text-decoration:none}
     <div id="v-login">
       <div class="eyebrow">Welcome</div>
       <div class="headline">Sign in</div>
-      <div class="lede">Use the email and temporary password you were given. You stay signed in for a week of use.</div>
+      <div class="lede">Sign in to your Silkly account.</div>
       <input class="fld" id="liEmail" type="email" placeholder="you@email.com" autocomplete="username" autocapitalize="none" spellcheck="false"/>
-      <input class="fld" id="liPass" type="password" placeholder="Password" autocomplete="current-password"/>
+      <div class="fld-wrap">
+        <input class="fld" id="liPass" type="password" placeholder="Password" autocomplete="current-password"/>
+        <button class="eye-btn" type="button" data-for="liPass" aria-label="Show password"></button>
+      </div>
       <button class="cta" id="liBtn">Sign in</button>
       <div class="err" id="liErr"></div>
+      <div class="fine">No account? <a href="#" id="toSignup">Create one</a></div>
+    </div>
+
+    <!-- view: SIGN UP -->
+    <div id="v-signup" style="display:none">
+      <div class="eyebrow">New account</div>
+      <div class="headline">Create your account</div>
+      <div class="lede">Enter your email and choose a password to get started.</div>
+      <input class="fld" id="suEmail" type="email" placeholder="you@email.com" autocomplete="username" autocapitalize="none" spellcheck="false"/>
+      <div class="fld-wrap">
+        <input class="fld" id="suPass" type="password" placeholder="Password (min 8 characters)" autocomplete="new-password"/>
+        <button class="eye-btn" type="button" data-for="suPass" aria-label="Show password"></button>
+      </div>
+      <div class="fld-wrap">
+        <input class="fld" id="suPass2" type="password" placeholder="Confirm password" autocomplete="new-password"/>
+        <button class="eye-btn" type="button" data-for="suPass2" aria-label="Show password"></button>
+      </div>
+      <button class="cta" id="suBtn">Create account</button>
+      <div class="err" id="suErr"></div>
+      <div class="fine">Already have an account? <a href="#" id="toLogin">Sign in</a></div>
     </div>
 
     <!-- view: SET NEW PASSWORD (first login) -->
@@ -306,8 +333,14 @@ a{color:var(--accent);text-decoration:none}
       <div class="eyebrow">First sign in</div>
       <div class="headline">Set your password</div>
       <div class="lede">Choose a password only you know. You'll use this from now on.</div>
-      <input class="fld" id="npPass" type="password" placeholder="New password (min 8 characters)" autocomplete="new-password"/>
-      <input class="fld" id="npPass2" type="password" placeholder="Confirm new password" autocomplete="new-password"/>
+      <div class="fld-wrap">
+        <input class="fld" id="npPass" type="password" placeholder="New password (min 8 characters)" autocomplete="new-password"/>
+        <button class="eye-btn" type="button" data-for="npPass" aria-label="Show password"></button>
+      </div>
+      <div class="fld-wrap">
+        <input class="fld" id="npPass2" type="password" placeholder="Confirm new password" autocomplete="new-password"/>
+        <button class="eye-btn" type="button" data-for="npPass2" aria-label="Show password"></button>
+      </div>
       <button class="cta" id="npBtn">Save password</button>
       <div class="err" id="npErr"></div>
     </div>
@@ -536,7 +569,22 @@ var _hdrIval=null, _refIval=null;
 /* ── DOM helpers ── */
 function el(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function show(v){["v-login","v-pass","v-theme","v-major"].forEach(function(x){el(x).style.display = (x===v?"block":"none");});}
+function show(v){["v-login","v-signup","v-pass","v-theme","v-major"].forEach(function(x){el(x).style.display=(x===v?"block":"none");});}
+
+/* ── password show/hide ── */
+var EYE_ON='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF='<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>';
+function initEyeBtns(){
+  Array.prototype.forEach.call(document.querySelectorAll('.eye-btn'),function(btn){
+    btn.innerHTML=EYE_ON;
+    btn.onclick=function(){
+      var inp=el(btn.getAttribute('data-for')); if(!inp) return;
+      var show=inp.type==='password'; inp.type=show?'text':'password';
+      btn.innerHTML=show?EYE_OFF:EYE_ON;
+    };
+  });
+}
+window.addEventListener('load',function(){ initEyeBtns(); });
 var DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function greet(){var h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
@@ -630,9 +678,32 @@ el('liBtn').onclick = async function(){
   var { data, error } = await sb.auth.signInWithPassword({ email:email, password:pass });
   this.disabled=false; this.textContent='Sign in';
   if(error){ el('liErr').textContent = friendly(error.message); return; }
-  // log a login event (best-effort)
   sb.from('usage_events').insert({ user_id:data.user.id, event_type:'login' });
   route();
+};
+el('toSignup').onclick=function(e){ e.preventDefault(); el('suEmail').value=el('liEmail').value||''; show('v-signup'); el('suErr').textContent=''; };
+el('toLogin').onclick=function(e){ e.preventDefault(); show('v-login'); el('liErr').textContent=''; };
+
+/* ============================================================
+   SIGN UP
+   ============================================================ */
+el('suBtn').onclick = async function(){
+  var email=(el('suEmail').value||'').trim(), p1=el('suPass').value||'', p2=el('suPass2').value||'';
+  el('suErr').textContent='';
+  if(!email){ el('suErr').textContent='Enter your email.'; return; }
+  if(p1.length<8){ el('suErr').textContent='Password must be at least 8 characters.'; return; }
+  if(p1!==p2){ el('suErr').textContent='Passwords don\'t match.'; return; }
+  this.disabled=true; this.textContent='Creating account…';
+  var { data, error } = await sb.auth.signUp({ email:email, password:p1 });
+  if(error){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent=friendly(error.message); return; }
+  if(!data.session){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent='Check your email to confirm your account, then sign in.'; return; }
+  // create profile row
+  var username=email.split('@')[0];
+  await sb.from('profiles').insert({ id:data.user.id, username:username, must_change_password:false, last_active_at:new Date().toISOString() });
+  this.disabled=false; this.textContent='Create account';
+  ME={ id:data.user.id, email:data.user.email, prof:{ username:username, must_change_password:false, major:null, theme:'dark' } };
+  el('wm').textContent=username;
+  show('v-theme'); initThemeOpts();
 };
 
 /* ============================================================
