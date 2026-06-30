@@ -650,12 +650,15 @@ async function route(){
     var { data:{ session } } = await sb.auth.getSession();
     if(!session){ openGate('v-login'); return; }
 
-    // Check approval status from auth metadata
-    var meta = (session.user.user_metadata||{});
+    // getUser() hits the server — guaranteed fresh metadata (getSession() returns cached JWT)
+    var { data: ud } = await sb.auth.getUser();
+    var meta = (ud&&ud.user&&ud.user.user_metadata) || (session.user.user_metadata||{});
+    var userEmail = (ud&&ud.user&&ud.user.email) || session.user.email || '';
     var status = meta.approval_status;
+
     if(status==='pending'){
       el('gate').classList.add('on'); show('v-pending');
-      if(el('pendEmail')) el('pendEmail').textContent=session.user.email||'';
+      if(el('pendEmail')) el('pendEmail').textContent = userEmail;
       return;
     }
     if(status==='denied'){
@@ -663,17 +666,27 @@ async function route(){
       return;
     }
 
-    // load profile — if missing, create it via edge function then retry once
+    // Load profile
     var prof = await getProfile(session.user.id);
     if(!prof){
-      await fetch(FN_URL+'/create-profile', { method:'POST', headers:{ 'Authorization':'Bearer '+session.access_token } });
-      prof = await getProfile(session.user.id);
+      // No profile yet (e.g. confirmed email externally) — create it and hold for approval
+      var cpRes = await fetch(FN_URL+'/create-profile', {
+        method:'POST',
+        headers:{ 'Authorization':'Bearer '+session.access_token }
+      });
+      if(!cpRes.ok){ await sb.auth.signOut(); openGate('v-login','Account setup failed. Please sign up again.'); return; }
+      el('gate').classList.add('on'); show('v-pending');
+      if(el('pendEmail')) el('pendEmail').textContent = userEmail;
+      return;
     }
-    if(!prof){ await sb.auth.signOut(); openGate('v-login', 'Could not load your profile. Please sign in again.'); return; }
 
     // 7-day inactivity logout
     var last = new Date(prof.last_active_at||0).getTime();
-    if(Date.now()-last > 7*24*60*60*1000){ await sb.auth.signOut(); openGate('v-login', "You were signed out after a week away. Sign in to continue."); return; }
+    if(Date.now()-last > 7*24*60*60*1000){
+      await sb.auth.signOut();
+      openGate('v-login','You were signed out after a week away. Sign in to continue.');
+      return;
+    }
 
     ME = { id:session.user.id, email:session.user.email, prof:prof };
     el('wm').textContent = prof.username || 'Silkly';
@@ -683,9 +696,10 @@ async function route(){
     if(!prof.major){ openGate('v-theme'); return; }
 
     await touchActive();
+    closeGate();
     enterApp(prof.major);
   }catch(e){
-    openGate('v-login', 'Connection error — check your internet and try again.');
+    openGate('v-login','Connection error — check your internet and try again.');
   }
 }
 
