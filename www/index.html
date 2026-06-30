@@ -68,6 +68,9 @@ a{color:var(--accent);text-decoration:none}
 .cta:active{opacity:.85}.cta:disabled{opacity:.5}
 .err{font-size:12.5px;color:var(--down);min-height:18px;margin-top:10px;line-height:1.5}
 .fine{font-size:11px;color:var(--sub);text-align:center;margin-top:16px;line-height:1.6}
+.pend-icon{font-size:48px;margin-bottom:16px}
+.pend-check{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:13px;padding:14px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;margin-top:4px}
+.pend-check:active{opacity:.8}
 .fld-wrap{position:relative;margin-bottom:11px}
 .fld-wrap .fld{margin-bottom:0;padding-right:46px;width:100%}
 .eye-btn{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--sub);cursor:pointer;padding:4px;line-height:0;display:flex;align-items:center}
@@ -307,6 +310,16 @@ a{color:var(--accent);text-decoration:none}
       <button class="cta" id="liBtn">Sign in</button>
       <div class="err" id="liErr"></div>
       <div class="fine">No account? <a href="#" id="toSignup">Create one</a></div>
+    </div>
+
+    <!-- view: PENDING APPROVAL -->
+    <div id="v-pending" style="display:none">
+      <div class="pend-icon">⏳</div>
+      <div class="eyebrow">Almost there</div>
+      <div class="headline">Pending approval</div>
+      <div class="lede">Your account is under review. You'll get an email at <strong id="pendEmail"></strong> once it's been approved — usually within a few hours.</div>
+      <button class="cta" id="pendingCheckBtn">Check status</button>
+      <button class="pend-check" id="pendingLogoutBtn">Sign out</button>
     </div>
 
     <!-- view: SIGN UP -->
@@ -569,7 +582,7 @@ var _hdrIval=null, _refIval=null;
 /* ── DOM helpers ── */
 function el(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function show(v){["v-login","v-signup","v-pass","v-theme","v-major"].forEach(function(x){el(x).style.display=(x===v?"block":"none");});}
+function show(v){["v-login","v-signup","v-pending","v-pass","v-theme","v-major"].forEach(function(x){el(x).style.display=(x===v?"block":"none");});}
 
 /* ── password show/hide ── */
 var EYE_ON='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -637,6 +650,19 @@ async function route(){
     var { data:{ session } } = await sb.auth.getSession();
     if(!session){ openGate('v-login'); return; }
 
+    // Check approval status from auth metadata
+    var meta = (session.user.user_metadata||{});
+    var status = meta.approval_status;
+    if(status==='pending'){
+      el('gate').classList.add('on'); show('v-pending');
+      if(el('pendEmail')) el('pendEmail').textContent=session.user.email||'';
+      return;
+    }
+    if(status==='denied'){
+      openGate('v-login','Your account application was not approved.');
+      return;
+    }
+
     // load profile — if missing, create it via edge function then retry once
     var prof = await getProfile(session.user.id);
     if(!prof){
@@ -696,6 +722,16 @@ el('liBtn').onclick = async function(){
 };
 el('toSignup').onclick=function(e){ e.preventDefault(); el('suEmail').value=el('liEmail').value||''; show('v-signup'); el('suErr').textContent=''; };
 el('toLogin').onclick=function(e){ e.preventDefault(); show('v-login'); el('liErr').textContent=''; };
+el('pendingCheckBtn').onclick=async function(){
+  this.disabled=true; this.textContent='Checking…';
+  var { data } = await sb.auth.refreshSession();
+  this.disabled=false; this.textContent='Check status';
+  var status = data&&data.user&&data.user.user_metadata&&data.user.user_metadata.approval_status;
+  if(status==='approved'){ closeGate(); route(); }
+  else if(status==='denied'){ await sb.auth.signOut(); openGate('v-login','Your account application was not approved.'); }
+  else { showToast('Still pending','Check back soon or wait for your email.'); }
+};
+el('pendingLogoutBtn').onclick=async function(){ await sb.auth.signOut(); openGate('v-login'); };
 
 /* ============================================================
    SIGN UP
@@ -717,10 +753,8 @@ el('suBtn').onclick = async function(){
   });
   if(!cpRes.ok){ this.disabled=false; this.textContent='Create account'; el('suErr').textContent='Account created but profile setup failed — try signing in.'; return; }
   this.disabled=false; this.textContent='Create account';
-  var username=data.user.email.split('@')[0];
-  ME={ id:data.user.id, email:data.user.email, prof:{ username:username, must_change_password:false, major:null, theme:'dark' } };
-  el('wm').textContent=username;
-  show('v-theme'); initThemeOpts();
+  if(el('pendEmail')) el('pendEmail').textContent=data.user.email||'';
+  show('v-pending');
 };
 
 /* ============================================================
