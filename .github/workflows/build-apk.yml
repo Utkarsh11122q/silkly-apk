@@ -2,9 +2,12 @@ name: Build APK
 
 # Runs when you push, or when you click "Run workflow" in the Actions tab.
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
+  push:
+    paths:
+      - 'capacitor.config.json'
+      - 'package.json'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
